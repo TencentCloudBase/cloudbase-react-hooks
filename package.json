@@ -1,0 +1,25 @@
+{
+  "name": "@cloudbase/react-hooks",
+  "version": "0.0.1",
+  "description": "### TODO",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/starkwang/cloudbase-react-hooks.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/starkwang/cloudbase-react-hooks/issues"
+  },
+  "homepage": "https://github.com/starkwang/cloudbase-react-hooks#readme",
+  "dependencies": {
+    "tcb-js-sdk": "^1.3.3-alpha.1"
+  },
+  "peerDependencies": {
+    "react": "^16.11.0"
+  }
+}
