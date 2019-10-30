@@ -2,13 +2,22 @@ import { useState, useEffect } from 'react'
 import * as cloudbase from 'tcb-js-sdk'
 
 class CloudbaseHooks {
-  constructor({ env, loginType, ticketCallback, persistence }) {
+  constructor({
+    env,
+    persistence,
+    loginType,
+    fetchTicket,
+    appid,
+    scope
+  }) {
     this.env = env
     this.app = cloudbase.init({ env })
     this.auth = this.app.auth({ persistence })
     this.db = this.app.database()
     this.loginType = loginType
-    this.ticketCallback = ticketCallback
+    this.fetchTicket = fetchTicket
+    this.appid = appid
+    this.scope = scope
     this._loginPromise = null
   }
 
@@ -29,8 +38,14 @@ class CloudbaseHooks {
 
   async _login() {
     switch (this.loginType) {
+      case 'wechat': {
+        return this.auth.weixinAuthProvider({
+          appid: this.appid,
+          scope: this.scope
+        }).signIn()
+      }
       case 'custom': {
-        const ticket = await this.ticketCallback()
+        const ticket = await this.fetchTicket()
         return this.auth.signInWithTicket(ticket)
       }
       default:
@@ -43,8 +58,8 @@ class CloudbaseHooks {
     const [credential, setCredential] = useState(null)
     const init = async () => {
       const { credential } = await this._checkLoginState()
-      setLoginState(true)
       setCredential(credential)
+      setLoginState(true)
     }
 
     useEffect(() => {
@@ -58,11 +73,27 @@ class CloudbaseHooks {
   }
 
   useDatabase() {
-    return this.db
+    const [database, setDatabase] = useState(null)
+    const init = async () => {
+      await this._checkLoginState()
+      setDatabase(this.db)
+    }
+    useEffect(() => {
+      init()
+    }, [])
+    return database
   }
 
   useCloudbase() {
-    return this.app
+    const [cloudbase, setCloudbase] = useState(null)
+    const init = async () => {
+      await this._checkLoginState()
+      setCloudbase(this.app)
+    }
+    useEffect(() => {
+      init()
+    }, [])
+    return cloudbase
   }
 
   useUpload() {
@@ -82,6 +113,7 @@ class CloudbaseHooks {
           }
         })
         setUploading(false)
+        setProgressEvent(null)
         setResult(res)
         return res
       } catch (e) {
@@ -111,7 +143,7 @@ class CloudbaseHooks {
           fileList: [cloudPath]
         })
         setLoading(false)
-        setUrl(result.fileList[0])
+        setUrl(result.fileList[0].tempFileURL)
       } catch (e) {
         setError(e)
       }
