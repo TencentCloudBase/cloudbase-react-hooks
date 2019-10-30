@@ -16,7 +16,7 @@ const { createCloudbaseHooks } = require('@cloudbase/react-hooks')
 const {
   useCloudbase,
   useLoginState,
-  useUpload
+  useUpload,
   useCloudFile,
   useDatabaseWatch
 } = createCloudbaseHooks({
