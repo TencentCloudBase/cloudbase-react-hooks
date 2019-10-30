@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import * as cloudbase from 'tcb-js-sdk'
 
-export class CloudbaseHooks {
+class CloudbaseHooks {
   constructor({ env, loginType, ticketCallback, persistence }) {
     this.env = env
     this.app = cloudbase.init({ env })
@@ -9,12 +9,20 @@ export class CloudbaseHooks {
     this.db = this.app.database()
     this.loginType = loginType
     this.ticketCallback = ticketCallback
+    this._loginPromise = null
   }
 
   async _checkLoginState() {
     const loginState = await this.auth.getLoginState()
+
     if (!loginState) {
-      return await this._login()
+      if (!this._loginPromise) {
+        // 没有登录，且没有正在登录，那么执行登录
+        this._loginPromise = this._login()
+      }
+      const result = await this._loginPromise
+      this._loginPromise = null
+      return result
     }
     return loginState
   }
@@ -49,6 +57,77 @@ export class CloudbaseHooks {
     }
   }
 
+  useDatabase() {
+    return this.db
+  }
+
+  useCloudbase() {
+    return this.app
+  }
+
+  useUpload() {
+    const [result, setResult] = useState(null)
+    const [error, setError] = useState(null)
+    const [uploading, setUploading] = useState(false)
+    const [progressEvent, setProgressEvent] = useState(null)
+    const upload = async (cloudPath, file) => {
+      try {
+        await this._checkLoginState()
+        setUploading(true)
+        const res = await this.app.uploadFile({
+          cloudPath,
+          filePath: file,
+          onUploadProgress(progressEvent) {
+            setProgressEvent(progressEvent)
+          }
+        })
+        setUploading(false)
+        setResult(res)
+        return res
+      } catch (e) {
+        setError(e)
+      }
+    }
+
+    return {
+      progressEvent,
+      result,
+      uploading,
+      error,
+      upload
+    }
+  }
+
+  useCloudFile(cloudPath) {
+    const [url, setUrl] = useState(null)
+    const [error, setError] = useState(null)
+    const [loading, setLoading] = useState(false)
+
+    const fetchFileUrl = async (cloudPath) => {
+      try {
+        await this._checkLoginState()
+        setLoading(true)
+        const result = await this.app.getTempFileURL({
+          fileList: [cloudPath]
+        })
+        setLoading(false)
+        setUrl(result.fileList[0])
+      } catch (e) {
+        setError(e)
+      }
+    }
+
+    useEffect(() => {
+      fetchFileUrl(cloudPath)
+    }, [cloudPath])
+
+    return {
+      url,
+      error,
+      loading
+    }
+  }
+
   useDatabaseWatch(collection, query = useState({})[0]) {
     const [snapshot, setSnapShot] = useState(null)
     const [error, setError] = useState(null)
@@ -57,16 +136,20 @@ export class CloudbaseHooks {
     useEffect(() => {
       let watcher
       const init = async () => {
-        await this._checkLoginState()
-        await this.db.collection(collection).where(query).watch({
-          onChange(snapshot) {
-            setConnecting(false)
-            setSnapShot(snapshot)
-          },
-          onError(err) {
-            setError(err)
-          }
-        })
+        try {
+          await this._checkLoginState()
+          await this.db.collection(collection).where(query).watch({
+            onChange(snapshot) {
+              setConnecting(false)
+              setSnapShot(snapshot)
+            },
+            onError(err) {
+              setError(err)
+            }
+          })
+        } catch (e) {
+          setError(e)
+        }
       }
       init()
       return () => {
@@ -81,5 +164,17 @@ export class CloudbaseHooks {
       connecting,
       error
     }
+  }
+}
+
+export function createCloudbaseHooks(options) {
+  const hooks = new CloudbaseHooks(options)
+  return {
+    useLoginState: hooks.useLoginState.bind(hooks),
+    useDatabase: hooks.useDatabase.bind(hooks),
+    useCloudbase: hooks.useCloudbase.bind(hooks),
+    useUpload: hooks.useUpload.bind(hooks),
+    useCloudFile: hooks.useCloudFile.bind(hooks),
+    useDatabaseWatch: hooks.useDatabaseWatch.bind(hooks)
   }
 }
