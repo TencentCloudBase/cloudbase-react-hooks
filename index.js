@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import * as cloudbase from 'tcb-js-sdk'
+import cloudbase from '@cloudbase/js-sdk'
 
 class CloudbaseHooks {
   constructor({
@@ -46,10 +46,11 @@ class CloudbaseHooks {
       }
       case 'custom': {
         const ticket = await this.fetchTicket()
-        return this.auth.signInWithTicket(ticket)
+        return this.auth.customAuthProvider().signIn(ticket)
       }
+      // 未登录
       default:
-        throw new Error(`未知的登录类型：${this.loginType}`)
+        return Promise.resolve(null)
     }
   }
 
